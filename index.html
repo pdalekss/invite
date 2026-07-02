@@ -6,10 +6,23 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Даниил и Ксения · 19.09.2026</title>
 
-<!-- Шрифты: Playfair Display (заголовки/имена) + Montserrat (текст). Оба с кириллицей. -->
+<!-- Прогрессивное улучшение: помечаем, что JS работает. Пока класс .js не выставлен,
+     контент виден по умолчанию — при отключённом/упавшем JS гость увидит страницу
+     целиком, а не пустой экран. -->
+<script>document.documentElement.classList.add('js');</script>
+
+<!-- Обложку грузим как можно раньше: это первый экран (LCP). -->
+<link rel="preload" as="image" href="couple.jpg">
+
+<!-- Шрифты: Playfair Display (заголовки/имена) + Montserrat (текст). Оба с кириллицей.
+     Оставлены только используемые начертания (Playfair 400/500/800, без курсивов; Montserrat 300/400/500).
+     Загрузка неблокирующая (media=print -> all по onload), чтобы шрифты не тормозили первую отрисовку;
+     системные подстановки в --serif/--sans гарантируют текст, даже если Google Fonts недоступен. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap&subset=cyrillic,latin" rel="stylesheet">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&family=Playfair+Display:wght@400;500;800&display=swap&subset=cyrillic,latin">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&family=Playfair+Display:wght@400;500;800&display=swap&subset=cyrillic,latin" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&family=Playfair+Display:wght@400;500;800&display=swap&subset=cyrillic,latin"></noscript>
 
 <style>
   :root{
@@ -243,14 +256,14 @@
   #invalid h2{ font-family:var(--serif); font-size:clamp(26px,5vw,36px); margin-bottom:16px; }
   #invalid p{ font-size:15px; color:var(--taupe); }
 
-  #content{ display:none; }
+  .js #content{ display:none; }
 
   /* ---------- Появление при скролле ---------- */
-  .reveal{ opacity:0; transform:translateY(26px); transition:opacity .9s ease, transform .9s ease; will-change:opacity, transform; }
+  .js .reveal{ opacity:0; transform:translateY(26px); transition:opacity .9s ease, transform .9s ease; }
   .reveal.in{ opacity:1; transform:none; }
 
   @media (prefers-reduced-motion: reduce){
-    .reveal{ opacity:1; transform:none; transition:none; }
+    .js .reveal{ opacity:1; transform:none; transition:none; }
     .cover .cover-top.reveal,.cover .cover-names.reveal{ transition-delay:0s; }
     .cover .scroll{ animation:none; opacity:.85; }
     html{ scroll-behavior:auto; }
@@ -303,7 +316,7 @@
       <div class="inner">
         <div class="label reveal">Где и когда</div>
         <h3 class="h-section reveal">Ресторан «Герасимов»</h3>
-        <div class="time reveal">Сбор гостей в 16:00 · г. Мичуринск</div>
+        <div class="time reveal">Сбор гостей в 15:00 · г. Мичуринск</div>
         <div class="reveal">
           <a class="btn" href="https://yandex.ru/maps/org/gerasimov/202626818634/?ll=40.506446%2C52.884513&z=16" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -361,7 +374,7 @@
         <div class="recap reveal">
           <span class="big">19.09.2026</span>
           Ресторан «Герасимов», г. Мичуринск<br>
-          Сбор гостей в 16:00
+          Сбор гостей в 15:00
         </div>
         <div class="rsvp-note reveal">Пожалуйста, подтвердите присутствие до 1 сентября</div>
       </div>
@@ -437,20 +450,29 @@
   (function () {
     // Персонализация: берём код ?g=... из ссылки и ищем обращение в словаре.
     // Нет кода или код неизвестен -> показываем заглушку, контент приглашения НЕ раскрываем.
-    var params = new URLSearchParams(window.location.search);
-    var code = (params.get("g") || "").trim();
-    if (code && GUESTS[code]) {
-      document.getElementById("salutation").textContent = GUESTS[code] + "!";
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var code = (params.get("g") || "").trim();
+      if (code && GUESTS[code]) {
+        document.getElementById("salutation").textContent = GUESTS[code] + "!";
+        document.getElementById("content").style.display = "block";
+      } else {
+        document.getElementById("invalid").style.display = "flex";
+      }
+    } catch (e) {
+      // Подстраховка: при сбое не оставляем гостя с пустым экраном — показываем контент.
       document.getElementById("content").style.display = "block";
-    } else {
-      document.getElementById("invalid").style.display = "flex";
     }
   })();
 
   // ====== Появление при скролле ======
   (function () {
     var els = document.querySelectorAll(".reveal");
-    if (!("IntersectionObserver" in window)) { els.forEach(function (el){ el.classList.add("in"); }); return; }
+    function showAll(){ els.forEach(function (el){ el.classList.add("in"); }); }
+    // Если IntersectionObserver недоступен или упадёт — просто показываем всё без анимации,
+    // чтобы текст никогда не остался невидимым (opacity:0).
+    if (!("IntersectionObserver" in window)) { showAll(); return; }
+    try {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
         if (e.isIntersecting) {
@@ -471,6 +493,7 @@
         els.forEach(function (el){ io.observe(el); });
       });
     });
+    } catch (e) { showAll(); }
   })();
 </script>
 </body>
